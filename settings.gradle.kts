@@ -26,6 +26,7 @@ dependencyResolutionManagement {
 
             // Ktor
             version("ktor", "3.1.3")
+            library("ktor-http", "io.ktor", "ktor-http").versionRef("ktor")
             library("ktor-network", "io.ktor", "ktor-network").versionRef("ktor")
             library("ktor-network-tls", "io.ktor", "ktor-network-tls").versionRef("ktor")
 

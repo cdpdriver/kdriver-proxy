@@ -1,6 +1,7 @@
 package dev.kdriver.proxy.connector
 
 import dev.kdriver.proxy.Proxy
+import io.ktor.http.*
 import io.ktor.network.selector.*
 import io.ktor.network.sockets.*
 import io.ktor.network.tls.*
@@ -28,15 +29,17 @@ internal object HttpConnectProxyConnector {
         selectorManager: SelectorManager = SelectorManager(Dispatchers.Default),
     ): Socket {
         // Parse proxy URL
-        val proxyHost = proxy.url.host ?: throw IllegalArgumentException("Proxy host is required")
-        val proxyPort = if (proxy.url.port > 0) proxy.url.port else {
-            when (proxy.url.scheme?.lowercase()) {
+        val proxyHost = proxy.url.host
+        val proxyPort = if (proxy.url.port != DEFAULT_PORT) {
+            proxy.url.port
+        } else {
+            when (proxy.url.protocol.name.lowercase()) {
                 "https" -> 443
                 "http" -> 80
-                else -> throw IllegalArgumentException("Unsupported proxy scheme: ${proxy.url.scheme}")
+                else -> throw IllegalArgumentException("Unsupported proxy scheme: ${proxy.url.protocol.name}")
             }
         }
-        val isHttps = proxy.url.scheme?.lowercase() == "https"
+        val isHttps = proxy.url.protocol.name.lowercase() == "https"
 
         // Connect to proxy server
         var socket: Socket = aSocket(selectorManager)

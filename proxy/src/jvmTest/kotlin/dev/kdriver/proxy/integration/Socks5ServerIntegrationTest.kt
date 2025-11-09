@@ -1,7 +1,6 @@
 package dev.kdriver.proxy.integration
 
 import dev.kdriver.proxy.Proxy
-import dev.kdriver.proxy.ProxyUrl
 import dev.kdriver.proxy.Socks5ProxyServer
 import dev.kdriver.proxy.protocol.Socks5Handshake
 import dev.kdriver.proxy.protocol.Socks5Reply
@@ -40,11 +39,7 @@ class Socks5ServerIntegrationTest {
     @Test
     fun testServerStartsAndAcceptsConnections() = runBlocking {
         // Create a mock upstream proxy (won't actually connect, just testing server startup)
-        val proxy = Proxy(
-            url = ProxyUrl("http", "localhost", 8080),
-            username = null,
-            password = null
-        )
+        val proxy = Proxy("http://localhost:8080")
 
         server = Socks5ProxyServer(serverPort, proxy)
         server.start(serverScope)
@@ -66,11 +61,7 @@ class Socks5ServerIntegrationTest {
 
     @Test
     fun testSocks5HandshakeNoAuth() = runBlocking {
-        val proxy = Proxy(
-            url = ProxyUrl("http", "localhost", 8080),
-            username = null,
-            password = null
-        )
+        val proxy = Proxy("http://localhost:8080")
 
         server = Socks5ProxyServer(serverPort, proxy)
         server.start(serverScope)
@@ -102,11 +93,7 @@ class Socks5ServerIntegrationTest {
 
     @Test
     fun testSocks5ConnectRequest() = runBlocking {
-        val proxy = Proxy(
-            url = ProxyUrl("http", "localhost", 8080),
-            username = null,
-            password = null
-        )
+        val proxy = Proxy("http://localhost:8080")
 
         server = Socks5ProxyServer(serverPort, proxy)
         server.start(serverScope)

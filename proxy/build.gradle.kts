@@ -84,6 +84,7 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 api(libs.kaccelero.core)
+                api(libs.ktor.http)
                 api(libs.ktor.network)
                 api(libs.ktor.network.tls)
             }
