@@ -1,16 +1,16 @@
 package dev.kdriver.proxy
 
+import io.ktor.util.collections.*
+import io.ktor.util.logging.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import org.slf4j.LoggerFactory
-import java.util.concurrent.ConcurrentHashMap
 
 internal object LocalProxyController {
 
-    private val logger = LoggerFactory.getLogger("LocalProxyController")
+    private val logger = KtorSimpleLogger("LocalProxyController")
 
-    private val proxies = ConcurrentHashMap<Int, Socks5ProxyServer>()
+    private val proxies = ConcurrentMap<Int, Socks5ProxyServer>()
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     fun startProxy(port: Int, proxy: Proxy) {

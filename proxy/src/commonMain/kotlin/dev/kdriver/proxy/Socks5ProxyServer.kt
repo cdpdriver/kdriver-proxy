@@ -1,13 +1,13 @@
 package dev.kdriver.proxy
 
+import io.ktor.network.sockets.ServerSocket
+import io.ktor.util.logging.*
 import kotlinx.coroutines.*
-import org.slf4j.LoggerFactory
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
 import java.io.PrintWriter
 import java.net.InetAddress
-import java.net.ServerSocket
 import java.net.Socket
 import java.net.URI
 import java.util.*
@@ -18,7 +18,7 @@ internal class Socks5ProxyServer(
     private val proxy: Proxy,
 ) {
 
-    private val logger = LoggerFactory.getLogger("Socks5ProxyServer")
+    private val logger = KtorSimpleLogger("Socks5ProxyServer")
 
     private var serverSocket: ServerSocket? = null
     private var serverJob: Job? = null

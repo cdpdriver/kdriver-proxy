@@ -24,12 +24,14 @@ dependencyResolutionManagement {
             version("kaccelero", "0.6.8")
             library("kaccelero-core", "dev.kaccelero", "core").versionRef("kaccelero")
 
+            // Ktor
+            version("ktor", "3.1.3")
+            library("ktor-network", "io.ktor", "ktor-network").versionRef("ktor")
+            library("ktor-network-tls", "io.ktor", "ktor-network-tls").versionRef("ktor")
+
             // Tests
             library("tests-mockk", "io.mockk:mockk:1.13.12")
             library("tests-coroutines", "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
-
-            // Others
-            library("slf4j", "org.slf4j:slf4j-api:2.0.9")
         }
     }
 }
