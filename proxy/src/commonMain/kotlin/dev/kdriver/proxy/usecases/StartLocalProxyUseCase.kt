@@ -1,7 +1,7 @@
-package digital.guimauve.koxxy.usecases
+package dev.kdriver.proxy.usecases
 
-import digital.guimauve.koxxy.LocalProxyController
-import digital.guimauve.koxxy.Proxy
+import dev.kdriver.proxy.LocalProxyController
+import dev.kdriver.proxy.Proxy
 
 class StartLocalProxyUseCase : IStartLocalProxyUseCase {
 

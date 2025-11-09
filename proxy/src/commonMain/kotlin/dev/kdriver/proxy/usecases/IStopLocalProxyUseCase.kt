@@ -1,4 +1,4 @@
-package digital.guimauve.koxxy.usecases
+package dev.kdriver.proxy.usecases
 
 import dev.kaccelero.usecases.IUseCase
 

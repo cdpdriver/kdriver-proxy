@@ -1,6 +1,6 @@
-package digital.guimauve.koxxy.usecases
+package dev.kdriver.proxy.usecases
 
-import digital.guimauve.koxxy.LocalProxyController
+import dev.kdriver.proxy.LocalProxyController
 
 class StopLocalProxyUseCase : IStopLocalProxyUseCase {
 

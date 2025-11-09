@@ -1,18 +1,28 @@
-# koxxy
+# kdriver-proxy
 
-**koxxy** is a lightweight SOCKS5 proxy server written in pure Kotlin. It allows you to create local SOCKS5 proxy
-endpoints that forward traffic through a remote HTTPS proxy with optional authentication.
+[![License](https://img.shields.io/github/license/cdpdriver/kdriver-proxy)](LICENSE)
+[![Maven Central Version](https://img.shields.io/maven-central/v/dev.kdriver/proxy)](https://klibs.io/project/cdpdriver/kdriver-proxy)
+[![Issues](https://img.shields.io/github/issues/cdpdriver/kdriver-proxy)]()
+[![Pull Requests](https://img.shields.io/github/issues-pr/cdpdriver/kdriver-proxy)]()
+[![codecov](https://codecov.io/github/cdpdriver/kdriver-proxy/branch/main/graph/badge.svg?token=F7K641TYFZ)](https://codecov.io/github/cdpdriver/kdriver-proxy)
+[![CodeFactor](https://www.codefactor.io/repository/github/cdpdriver/kdriver-proxy/badge)](https://www.codefactor.io/repository/github/cdpdriver/kdriver-proxy)
+[![Open Source Helpers](https://www.codetriage.com/cdpdriver/kdriver-proxy/badges/users.svg)](https://www.codetriage.com/cdpdriver/kdriver-proxy)
+
+A lightweight SOCKS5 proxy server written in pure Kotlin. It allows you to create local SOCKS5
+proxy endpoints that forward traffic through a remote HTTPS proxy with optional authentication.
 
 Ideal for Kotlin applications needing dynamic local proxies without relying on external binaries
 like [Gost](https://github.com/go-gost/gost), especially on platforms like Windows.
 
+It's perfect for use with [KDriver](https://github.com/cdpdriver/kdriver).
+
 ## 📦 Installation
 
-koxxy is published to Maven Central. Add the dependency to your `build.gradle.kts`:
+Add the dependency to your `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("digital.guimauve.koxxy:core:1.0.0")
+    implementation("dev.kdriver:proxy:0.1.0")
 }
 ```
 

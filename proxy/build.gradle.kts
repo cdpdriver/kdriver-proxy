@@ -10,14 +10,14 @@ mavenPublishing {
     publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
     signAllPublications()
     pom {
-        name.set("core")
-        description.set("core of koxxy.")
-        url.set("https://github.com/guimauvedigital/koxxy")
+        name.set("proxy")
+        description.set("SOCKS5 proxy server written in pure Kotlin.")
+        url.set("https://github.com/cdpdriver/kdriver-proxy")
 
         licenses {
             license {
-                name.set("GPL-3.0")
-                url.set("https://opensource.org/licenses/GPL-3.0")
+                name.set("Apache 2.0")
+                url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
             }
         }
         developers {
@@ -29,7 +29,7 @@ mavenPublishing {
             }
         }
         scm {
-            url.set("https://github.com/guimauvedigital/koxxy.git")
+            url.set("https://github.com/cdpdriver/kdriver-proxy.git")
         }
     }
 }

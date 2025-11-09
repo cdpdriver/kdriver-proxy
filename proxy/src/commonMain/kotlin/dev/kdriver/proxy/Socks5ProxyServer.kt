@@ -1,4 +1,4 @@
-package digital.guimauve.koxxy
+package dev.kdriver.proxy
 
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
