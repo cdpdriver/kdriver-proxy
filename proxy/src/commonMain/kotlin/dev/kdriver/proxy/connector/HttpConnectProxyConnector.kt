@@ -5,6 +5,7 @@ import io.ktor.http.*
 import io.ktor.network.selector.*
 import io.ktor.network.sockets.*
 import io.ktor.network.tls.*
+import io.ktor.util.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.Dispatchers
 
@@ -62,7 +63,7 @@ internal object HttpConnectProxyConnector {
             sendConnectRequest(writeChannel, targetHost, targetPort, proxy.username, proxy.password)
 
             // Read and validate HTTP response
-            readConnectResponse(readChannel, targetHost, targetPort)
+            readConnectResponse(readChannel)
 
             // Connection established, return socket for data transfer
             return socket
@@ -119,11 +120,7 @@ internal object HttpConnectProxyConnector {
      * [headers...]
      * [blank line]
      */
-    private suspend fun readConnectResponse(
-        channel: ByteReadChannel,
-        targetHost: String,
-        targetPort: Int,
-    ) {
+    private suspend fun readConnectResponse(channel: ByteReadChannel) {
         // Read status line
         val statusLine = channel.readUTF8Line()
             ?: throw IllegalStateException("No response from proxy")
@@ -151,31 +148,6 @@ internal object HttpConnectProxyConnector {
         }
 
         // Connection established successfully
-    }
-
-    /**
-     * Base64 encoding for Basic authentication
-     * Note: This is a simple implementation. For production use, consider using a proper Base64 library
-     */
-    private fun ByteArray.encodeBase64(): String {
-        val base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-        val output = StringBuilder()
-
-        var i = 0
-        while (i < size) {
-            val b1 = this[i++].toInt() and 0xFF
-            val b2 = if (i < size) this[i++].toInt() and 0xFF else 0
-            val b3 = if (i < size) this[i++].toInt() and 0xFF else 0
-
-            val triple = (b1 shl 16) or (b2 shl 8) or b3
-
-            output.append(base64Chars[(triple shr 18) and 0x3F])
-            output.append(base64Chars[(triple shr 12) and 0x3F])
-            output.append(if (i > size + 1) '=' else base64Chars[(triple shr 6) and 0x3F])
-            output.append(if (i > size) '=' else base64Chars[triple and 0x3F])
-        }
-
-        return output.toString()
     }
 
 }
