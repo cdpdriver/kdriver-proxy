@@ -1,38 +1,59 @@
 package dev.kdriver.proxy
 
+import dev.kdriver.proxy.connector.HttpConnectProxyConnector
+import dev.kdriver.proxy.protocol.Socks5Constants
+import dev.kdriver.proxy.protocol.Socks5Handshake
+import dev.kdriver.proxy.protocol.Socks5Reply
+import dev.kdriver.proxy.protocol.Socks5Request
+import dev.kdriver.proxy.relay.BidirectionalRelay
+import io.ktor.network.selector.*
+import io.ktor.network.sockets.*
+import io.ktor.util.logging.*
 import kotlinx.coroutines.*
-import org.slf4j.LoggerFactory
-import java.io.BufferedReader
-import java.io.IOException
-import java.io.InputStreamReader
-import java.io.PrintWriter
-import java.net.InetAddress
-import java.net.ServerSocket
-import java.net.Socket
-import java.net.URI
-import java.util.*
-import javax.net.ssl.SSLSocketFactory
 
 internal class Socks5ProxyServer(
     private val listenPort: Int,
     private val proxy: Proxy,
 ) {
 
-    private val logger = LoggerFactory.getLogger("Socks5ProxyServer")
+    private val logger = KtorSimpleLogger("Socks5ProxyServer")
 
     private var serverSocket: ServerSocket? = null
     private var serverJob: Job? = null
+    private var selectorManager: SelectorManager? = null
 
     fun start(scope: CoroutineScope) {
         serverJob = scope.launch {
-            serverSocket = ServerSocket(listenPort)
-            logger.info("SOCKS5 proxy listening on port $listenPort")
+            try {
+                // Create selector manager for network I/O
+                selectorManager = SelectorManager(Dispatchers.Default)
 
-            while (isActive) {
-                val clientSocket = serverSocket?.accept() ?: break
-                launch {
-                    handleSocks5Client(clientSocket)
+                // Create and bind server socket
+                serverSocket = aSocket(selectorManager!!)
+                    .tcp()
+                    .bind("0.0.0.0", listenPort)
+
+                logger.info("SOCKS5 proxy listening on port $listenPort")
+
+                // Accept client connections
+                while (isActive) {
+                    try {
+                        val clientSocket = serverSocket?.accept() ?: break
+                        launch {
+                            handleSocks5Client(clientSocket)
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        if (isActive) {
+                            logger.error("Error accepting client connection", e)
+                        }
+                    }
                 }
+            } catch (e: CancellationException) {
+                // Normal shutdown
+            } catch (e: Exception) {
+                logger.error("Server error", e)
             }
         }
     }
@@ -40,109 +61,116 @@ internal class Socks5ProxyServer(
     fun stop() {
         serverJob?.cancel()
         serverSocket?.close()
+        selectorManager?.close()
     }
 
-    private fun handleSocks5Client(clientSocket: Socket) {
+    private suspend fun handleSocks5Client(clientSocket: Socket) {
         try {
-            val input = clientSocket.getInputStream()
-            val output = clientSocket.getOutputStream()
+            val remoteAddr = clientSocket.remoteAddress.toString()
+            logger.info("New connection from $remoteAddr")
 
-            // Read and ignore method negotiation
-            val version = input.read()
-            if (version != 0x05) throw IOException("Unsupported SOCKS version")
-            val nMethods = input.read()
-            input.readNBytes(nMethods) // ignore methods
-            output.write(byteArrayOf(0x05, 0x00)) // no authentication
+            val readChannel = clientSocket.openReadChannel()
+            val writeChannel = clientSocket.openWriteChannel(autoFlush = false)
 
-            // Read request
-            val req = input.readNBytes(4)
-            val atyp = req[3].toInt()
+            // Perform SOCKS5 handshake (method selection and authentication)
+            Socks5Handshake.serverHandshake(
+                readChannel = readChannel,
+                writeChannel = writeChannel,
+                requireAuth = false, // TODO: Make configurable
+                validateCredentials = null // TODO: Implement credential validation
+            )
 
-            val destHost = when (atyp) {
-                0x01 -> InetAddress.getByAddress(input.readNBytes(4)).hostAddress // IPv4
-                0x03 -> {
-                    val len = input.read()
-                    String(input.readNBytes(len))
+            // Read SOCKS5 request
+            val request = Socks5Request.read(readChannel)
+            logger.info("Request from $remoteAddr: $request")
+
+            // Handle different commands
+            when {
+                request.isConnect() -> handleConnect(clientSocket, request, readChannel, writeChannel, remoteAddr)
+                request.isBind() -> handleBind(clientSocket, writeChannel, remoteAddr)
+                request.isUdpAssociate() -> handleUdpAssociate(clientSocket, writeChannel, remoteAddr)
+                else -> {
+                    logger.error("Unsupported command: ${request.command}")
+                    Socks5Reply.error(Socks5Constants.Reply.COMMAND_NOT_SUPPORTED).write(writeChannel)
+                    clientSocket.close()
                 }
-
-                0x04 -> InetAddress.getByAddress(input.readNBytes(16)).hostAddress // IPv6
-                else -> throw IOException("Unsupported address type")
             }
-            val portBytes = input.readNBytes(2)
-            val destPort = ((portBytes[0].toInt() and 0xFF) shl 8) or (portBytes[1].toInt() and 0xFF)
-
-            val targetSocket = connectViaProxy(proxy.url, destHost, destPort, proxy.username, proxy.password)
-
-            // Reply OK
-            output.write(byteArrayOf(0x05, 0x00, 0x00, 0x01))
-            output.write(InetAddress.getByName("0.0.0.0").address)
-            output.write(byteArrayOf(0x00, 0x00))
-            output.flush()
-
-            // Relay traffic
-            relayData(clientSocket, targetSocket)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            e.printStackTrace()
+            logger.error("Error handling client", e)
+            try {
+                clientSocket.close()
+            } catch (closeError: Exception) {
+                // Ignore close errors
+            }
+        }
+    }
+
+    private suspend fun handleConnect(
+        clientSocket: Socket,
+        request: Socks5Request,
+        readChannel: io.ktor.utils.io.ByteReadChannel,
+        writeChannel: io.ktor.utils.io.ByteWriteChannel,
+        remoteAddr: String,
+    ) {
+        var targetSocket: Socket? = null
+        try {
+            // Connect to target through upstream proxy
+            targetSocket = HttpConnectProxyConnector.connect(
+                proxy = proxy,
+                targetHost = request.address.host,
+                targetPort = request.address.port,
+                selectorManager = selectorManager!!
+            )
+
+            logger.info("Connected to ${request.address} via proxy for $remoteAddr")
+
+            // Send success reply
+            Socks5Reply.success().write(writeChannel)
+
+            // Start bidirectional relay
+            logger.info("Starting relay: $remoteAddr <-> ${request.address}")
+            BidirectionalRelay.relay(
+                scope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
+                socket1 = clientSocket,
+                socket2 = targetSocket,
+                onBytesTransferred = { fromClient, fromTarget ->
+                    logger.info("Relay completed: $remoteAddr <-> ${request.address} (sent: $fromClient bytes, received: $fromTarget bytes)")
+                }
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.error("Error connecting to ${request.address}", e)
+            try {
+                Socks5Reply.fromException(e).write(writeChannel)
+            } catch (replyError: Exception) {
+                // Ignore if we can't send reply
+            }
             clientSocket.close()
+            targetSocket?.close()
         }
     }
 
-    private fun connectViaProxy(
-        proxy: URI,
-        destHost: String,
-        destPort: Int,
-        username: String?,
-        password: String?,
-    ): Socket {
-        val socket = when (proxy.scheme.lowercase()) {
-            "http" -> Socket(proxy.host, proxy.port)
-            "https" -> {
-                val factory = SSLSocketFactory.getDefault() as SSLSocketFactory
-                factory.createSocket(proxy.host, proxy.port)
-            }
-
-            else -> throw IllegalArgumentException("Unsupported proxy scheme: ${proxy.scheme}")
-        }
-
-        val writer = PrintWriter(socket.getOutputStream(), true)
-        val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
-
-        writer.println("CONNECT $destHost:$destPort HTTP/1.1")
-        writer.println("Host: $destHost:$destPort")
-        if (!username.isNullOrBlank() && !password.isNullOrBlank()) {
-            val encoded = Base64.getEncoder().encodeToString("$username:$password".toByteArray())
-            writer.println("Proxy-Authorization: Basic $encoded")
-        }
-        writer.println()
-        writer.flush()
-
-        val statusLine = reader.readLine()
-        if (!statusLine.contains("200")) {
-            throw IOException("Proxy connect failed: $statusLine")
-        }
-
-        while (reader.readLine().isNotEmpty()) {
-        }
-        return socket
+    private suspend fun handleBind(
+        clientSocket: Socket,
+        writeChannel: io.ktor.utils.io.ByteWriteChannel,
+        remoteAddr: String,
+    ) {
+        logger.warn("BIND command not supported from $remoteAddr")
+        Socks5Reply.error(Socks5Constants.Reply.COMMAND_NOT_SUPPORTED).write(writeChannel)
+        clientSocket.close()
     }
 
-    private fun relayData(socket1: Socket, socket2: Socket) {
-        CoroutineScope(Dispatchers.IO).launch {
-            val in1 = socket1.getInputStream()
-            val out2 = socket2.getOutputStream()
-            try {
-                in1.copyTo(out2)
-            } catch (_: IOException) {
-            }
-        }
-        CoroutineScope(Dispatchers.IO).launch {
-            val in2 = socket2.getInputStream()
-            val out1 = socket1.getOutputStream()
-            try {
-                in2.copyTo(out1)
-            } catch (_: IOException) {
-            }
-        }
+    private suspend fun handleUdpAssociate(
+        clientSocket: Socket,
+        writeChannel: io.ktor.utils.io.ByteWriteChannel,
+        remoteAddr: String,
+    ) {
+        logger.warn("UDP ASSOCIATE command not supported from $remoteAddr")
+        Socks5Reply.error(Socks5Constants.Reply.COMMAND_NOT_SUPPORTED).write(writeChannel)
+        clientSocket.close()
     }
 
 }

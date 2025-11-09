@@ -22,7 +22,7 @@ Add the dependency to your `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("dev.kdriver:proxy:0.1.0")
+    implementation("dev.kdriver:proxy:0.2.0")
 }
 ```
 
