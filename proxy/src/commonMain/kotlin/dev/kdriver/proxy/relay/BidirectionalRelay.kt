@@ -52,7 +52,7 @@ internal object BidirectionalRelay {
                         // Expected when connection closes
                     } finally {
                         // Close write side to signal EOF
-                        writeChannel2.close()
+                        writeChannel2.flushAndClose()
                     }
                 }
 
@@ -64,7 +64,7 @@ internal object BidirectionalRelay {
                         // Expected when connection closes
                     } finally {
                         // Close write side to signal EOF
-                        writeChannel1.close()
+                        writeChannel1.flushAndClose()
                     }
                 }
 

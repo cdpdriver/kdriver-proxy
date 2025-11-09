@@ -109,6 +109,7 @@ internal data class Socks5Address(
         // Write 2-byte port (big-endian)
         channel.writeByte((port shr 8).toByte())
         channel.writeByte(port.toByte())
+        channel.flush()
     }
 
     /**
