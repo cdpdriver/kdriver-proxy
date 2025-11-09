@@ -1,9 +1,20 @@
 package dev.kdriver.proxy
 
-import java.net.URI
-
 data class Proxy(
-    val url: URI,
+    val url: ProxyUrl,
     val username: String? = null,
     val password: String? = null,
-)
+) {
+
+    companion object {
+
+        /**
+         * Create a Proxy from a URL string
+         */
+        fun fromUrl(url: String, username: String? = null, password: String? = null): Proxy {
+            return Proxy(ProxyUrl.parse(url), username, password)
+        }
+
+    }
+
+}

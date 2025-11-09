@@ -11,7 +11,7 @@ internal object LocalProxyController {
     private val logger = KtorSimpleLogger("LocalProxyController")
 
     private val proxies = ConcurrentMap<Int, Socks5ProxyServer>()
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     fun startProxy(port: Int, proxy: Proxy) {
         if (proxies.containsKey(port)) {
